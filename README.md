@@ -2,15 +2,41 @@
 
 ## 1. Preparation
 
-### 1.1 Install dependencies
+### 1.1 Clone the repository
 
-Please make sure that you have more than 30 GB storage.
+Please make sure that you have more than 30 GB storage. In any terminal, execute the following. 
+
+```
+git clone https://github.com/AntonioShen/DANN.git
+```
+
+### 1.2 Download the GDSC and CCLE dataset
+
+Google Drive: 
+
+https://drive.google.com/drive/folders/1yz9UeFCF6MK0AeNCmnb-6rOVQILYaptL?usp=sharing
+
+On the above webpage, download all 3 files in the gdsc folder and move them into the following folder.
+
+```
+$yourworkspace$/DANN/data/cleaned/gdsc/
+```
+
+Repeat the previous step for the other 3 files in the ccle folder, and move them into the following folder.
+
+```
+$yourworkspace$/DANN/data/cleaned/ccle/
+```
+
+### 1.3 Install dependencies
+
+Under the project root, execute the following.
 
 ```
 pip install -r requirements.txt
 ```
 
-### 1.2 Run dataset helper
+### 1.4 Run dataset helper
 
 This generates essential median csv files for future processing.
 
