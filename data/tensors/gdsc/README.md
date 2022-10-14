@@ -1,4 +1,4 @@
-This directory consists:
+This directory consists of:
 
 README.md
 

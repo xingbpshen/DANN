@@ -1,4 +1,4 @@
-This directory consists:
+This directory consists of:
 
 gdsc_250_drug_descriptors.csv
 
