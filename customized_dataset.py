@@ -18,7 +18,9 @@ class KFold:
         if self.use_size == len(self.dataset):
             return None
         else:
-            return self.dataset.get_items(self.use_size, len(self.dataset) - self.use_size)
+            # return self.dataset.get_items(self.use_size, len(self.dataset) - self.use_size)
+            x_t, y_t = self.dataset.get_items(self.use_size, len(self.dataset) - self.use_size)
+            return MyDataset.from_x_y(x_t, y_t)
 
     def get_next_train_validation(self):
         index = self.pointer * self.fold_size
@@ -46,15 +48,32 @@ class KFold:
         if self.pointer >= self.k:
             self.pointer = 0
 
-        return x_tr, y_tr, x_v, y_v
+        # return x_tr, y_tr, x_v, y_v
+        return MyDataset.from_x_y(x_tr, y_tr), MyDataset.from_x_y(x_v, y_v)
 
 
 class MyDataset(Dataset):
-    def __init__(self, ccl_tensor, dd_tensor, ic50_tensor):
-        self.x = torch.zeros((ic50_tensor.shape[0], ccl_tensor.shape[1] + dd_tensor.shape[1]), dtype=torch.float32)
-        for i in range(self.x.shape[0]):
-            self.x[i] = torch.cat((ccl_tensor[i], dd_tensor[i]))
-        self.y = torch.Tensor(ic50_tensor)
+    # def __init__(self, ccl_tensor, dd_tensor, ic50_tensor):
+    #     self.x = torch.zeros((ic50_tensor.shape[0], ccl_tensor.shape[1] + dd_tensor.shape[1]), dtype=torch.float32)
+    #     for i in range(self.x.shape[0]):
+    #         self.x[i] = torch.cat((ccl_tensor[i], dd_tensor[i]))
+    #     self.y = torch.Tensor(ic50_tensor)
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    @classmethod
+    def from_x_y(cls, x, y):
+        return cls(x, y)
+
+    @classmethod
+    def from_ccl_dd_ic50(cls, ccl_tensor, dd_tensor, ic50_tensor):
+        x = torch.zeros((ic50_tensor.shape[0], ccl_tensor.shape[1] + dd_tensor.shape[1]), dtype=torch.float32)
+        for i in range(x.shape[0]):
+            x[i] = torch.cat((ccl_tensor[i], dd_tensor[i]))
+        y = torch.Tensor(ic50_tensor)
+        return cls(x, y)
 
     def __len__(self):
         return len(self.y)
