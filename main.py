@@ -61,8 +61,8 @@ def main(argv):
                                    torch.load(GDSC_TENSOR_PATH + 'DD.pt'),
                                    torch.load(GDSC_TENSOR_PATH + 'IC50.pt'))
     ccle_domain_dataset = \
-        MyDataset.from_ccl_dd_domain(torch.load(CCLE_TENSOR_PATH + 'CCL_COMMON.pt'),
-                                     torch.load(CCLE_TENSOR_PATH + 'DD_COMMON.pt'),
+        MyDataset.from_ccl_dd_domain(torch.load(CCLE_TENSOR_PATH + 'CCL.pt'),
+                                     torch.load(CCLE_TENSOR_PATH + 'DD.pt'),
                                      1)
     ccle_ic50_dataset_test = \
         MyDataset.from_ccl_dd_ic50(torch.load(CCLE_TENSOR_PATH + 'CCL_COMMON.pt'),
