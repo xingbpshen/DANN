@@ -29,11 +29,11 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
         optimizer.zero_grad()
 
         regression_pred, domain_pred = model(xs, alpha)
-        loss_s_label = loss_regression(regression_pred, ys.view(-1, 1))
-        loss_s_domain = loss_domain(domain_pred, dys)
+        loss_s_label = loss_regression(regression_pred.view(-1), ys.view(-1))
+        loss_s_domain = loss_domain(domain_pred.view(-1), dys.view(-1))
 
         _, domain_pred = model(xt, alpha)
-        loss_t_domain = loss_domain(domain_pred, dyt)
+        loss_t_domain = loss_domain(domain_pred.view(-1), dyt.view(-1))
 
         loss = loss_s_label + loss_s_domain + loss_t_domain
         loss.backward()
