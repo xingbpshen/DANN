@@ -8,13 +8,13 @@ class GradientReverse(torch.autograd.Function):
     def forward(ctx, x, lamb):
         ctx.lamb = lamb
 
-        return x
+        return x.view_as(x)
 
     @staticmethod
     def backward(ctx, gradient):
         new_grad = gradient.neg() * ctx.lamb
 
-        return new_grad
+        return new_grad, None
 
 
 class DANN(nn.Module):
