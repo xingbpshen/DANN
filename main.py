@@ -35,7 +35,7 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
         loss_s_domain = loss_domain(domain_pred.view(-1), dys.view(-1))
 
         _, domain_pred = model(xt, alpha)
-        loss_t_domain = loss_domain(domain_pred.view(-1), dyt.view(-1))
+        loss_t_domain = loss_domain(domain_pred.view(-1), dyt[:len(domain_pred.view(-1))].view(-1))
 
         loss = loss_s_label + loss_s_domain + loss_t_domain
         loss.backward()
