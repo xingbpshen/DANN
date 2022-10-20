@@ -34,10 +34,10 @@ class DANN(nn.Module):
 
         self.Gy = torch.nn.Sequential()
         self.Gy.add_module('gy_fc1', nn.Linear(self.fc3_n, 100))
-        self.Gy.add_module('gf_relu1', nn.ReLU(True))
-        self.Gy.add_module('gy_fc1', nn.Linear(100, 64))
-        self.Gy.add_module('gf_relu1', nn.ReLU(True))
-        self.Gy.add_module('gy_fc1', nn.Linear(64, n))
+        self.Gy.add_module('gy_relu1', nn.ReLU(True))
+        self.Gy.add_module('gy_fc2', nn.Linear(100, 64))
+        self.Gy.add_module('gy_relu2', nn.ReLU(True))
+        self.Gy.add_module('gy_fc3', nn.Linear(64, n))
 
         self.Gd = torch.nn.Sequential()
         self.Gd.add_module('gd_fc1', nn.Linear(self.fc3_n, 100))
