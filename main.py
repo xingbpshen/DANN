@@ -23,7 +23,7 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
     for (i, (xs, ys)), (_, (xt, dyt)) in zip(s_t_loader, t_t_loader):
         p = float(i + epoch * len_dataloader) / epochs / len_dataloader
         alpha = 2. / (1. + np.exp(-10 * p)) - 1
-        dys = torch.zeros(batch_size)
+        dys = torch.zeros((batch_size, 1))
         if torch.cuda.is_available():
             xs, ys, dys, xt, dyt = xs.cuda(), ys.cuda(), dys.cuda(), xt.cuda(), dyt.cuda()
         optimizer.zero_grad()

@@ -83,9 +83,9 @@ class MyDataset(Dataset):
         for i in range(x.shape[0]):
             x[i] = torch.cat((ccl_tensor[i], dd_tensor[i]))
         if domain == 1:
-            y = torch.ones((x.shape[0], ))
+            y = torch.ones((x.shape[0], 1))
         else:
-            y = torch.zeros((x.shape[0], ))
+            y = torch.zeros((x.shape[0], 1))
         return cls(x, y)
 
     def __len__(self):
