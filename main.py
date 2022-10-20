@@ -25,6 +25,7 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
         alpha = 2. / (1. + np.exp(-10 * p)) - 1
         dys = torch.zeros((batch_size, 1))
         if torch.cuda.is_available():
+            dys, dyt = dys.to(torch.int64), dyt.to(torch.int64)
             xs, ys, dys, xt, dyt = xs.cuda(), ys.cuda(), dys.cuda(), xt.cuda(), dyt.cuda()
         optimizer.zero_grad()
 
