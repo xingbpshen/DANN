@@ -66,6 +66,7 @@ def load_from_name(d_name):
 
 def save_tensors(ts, names):
     for t, name in zip(ts, names):
+        print(t)
         torch.save(t, TENSOR_PATH + name)
         print('Saved ', TENSOR_PATH + name, ' shape ', t.shape)
 

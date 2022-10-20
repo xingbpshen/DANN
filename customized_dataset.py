@@ -61,8 +61,12 @@ class MyDataset(Dataset):
 
     def __init__(self, x, y):
         def standardization(t):
-            return (t - t.mean()) / t.std()
-        self.x = standardization(x)
+            mean, std = t.mean(), t.std()
+            for i in range(t.shape[0]):
+                for j in range(t.shape[1]):
+                    t[i][j] = (t[i][j] - mean) / std
+            return t
+        self.x = x
         self.y = y
 
     @classmethod
