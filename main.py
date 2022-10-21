@@ -32,7 +32,7 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
         regression_pred, domain_pred = model(xs, alpha)
         # print(regression_pred.shape, domain_pred.shape)
         loss_s_label = loss_regression(regression_pred.view(-1), ys.view(-1))
-        loss_s_domain = loss_domain(domain_pred.view(-1), dys.view(-1))
+        loss_s_domain = loss_domain(domain_pred.view(-1), dys[:len(domain_pred.view(-1))].view(-1))
 
         _, domain_pred = model(xt, alpha)
         loss_t_domain = loss_domain(domain_pred.view(-1), dyt[:len(domain_pred.view(-1))].view(-1))
