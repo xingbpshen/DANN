@@ -34,15 +34,37 @@ def load_all(args):
 def extract_data(dfs, label):
     tuple_df, dd_df, ccl_df = dfs[0], dfs[1], dfs[2]
     dd_tensor, ccl_tensor, response_tensor = torch.zeros((tuple_df.shape[0], dd_df.shape[1])), torch.zeros((tuple_df.shape[0], ccl_df.shape[0])), torch.zeros((tuple_df.shape[0],))
+    prev_valid_dd, prev_valid_ccl, prev_valid_resp = 0, 0, 0    # need to ensure that the first row is valid
     for i in tqdm(range(tuple_df.shape[0])):
         drug_name, ccl_name, response = tuple_df['drug'].iloc[[i]], tuple_df['cell_line'].iloc[[i]], tuple_df[label].iloc[[i]]
         dd = dd_df.loc[drug_name]   # n
         dd = torch.tensor(dd.values).reshape(-1, )
         ccl = ccl_df[ccl_name]  # nx1
         ccl = torch.tensor(ccl.values).reshape(-1, )
-        dd_tensor[i] = dd
-        ccl_tensor[i] = ccl
-        response_tensor[i] = torch.tensor(response.values).reshape(-1, )
+        resp = torch.tensor(response.values).reshape(-1, )
+
+        def involves_nan(t_1d):
+            t_isnan = torch.isnan(t_1d)
+            for val in t_isnan:
+                if val:
+                    return True
+            return False
+
+        if involves_nan(dd) or involves_nan(ccl) or involves_nan(resp):
+            if i == 0:
+                print('Error, the first row in tuple has invalid data.')
+                exit(1)
+            print('NaN detected, replaced with the last valid data.')
+            dd_tensor[i] = prev_valid_dd
+            ccl_tensor[i] = prev_valid_ccl
+            response_tensor[i] = prev_valid_resp
+        else:
+            dd_tensor[i] = dd
+            ccl_tensor[i] = ccl
+            response_tensor[i] = resp
+            prev_valid_dd = dd
+            prev_valid_ccl = ccl
+            prev_valid_resp = resp
 
     return dd_tensor, ccl_tensor, response_tensor
 

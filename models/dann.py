@@ -42,7 +42,7 @@ class DANN(nn.Module):
         self.Gd = torch.nn.Sequential()
         self.Gd.add_module('gd_fc1', nn.Linear(self.fc3_n, 100))
         self.Gd.add_module('gd_relu1', nn.ReLU(True))
-        self.Gd.add_module('gd_fc2', nn.Linear(100, 1))
+        self.Gd.add_module('gd_fc2', nn.Linear(100, 2))
         self.Gd.add_module('gd_softmax', nn.LogSoftmax(dim=1))
 
     def forward(self, x, lamb):

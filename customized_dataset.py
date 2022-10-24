@@ -60,12 +60,6 @@ class MyDataset(Dataset):
     #     self.y = torch.Tensor(ic50_tensor)
 
     def __init__(self, x, y):
-        def standardization(t):
-            mean, std = t.mean(), t.std()
-            for i in range(t.shape[0]):
-                for j in range(t.shape[1]):
-                    t[i][j] = (t[i][j] - mean) / std
-            return t
         self.x = x
         self.y = y
 
@@ -86,10 +80,8 @@ class MyDataset(Dataset):
         x = torch.zeros((ccl_tensor.shape[0], ccl_tensor.shape[1] + dd_tensor.shape[1]), dtype=torch.float32)
         for i in range(x.shape[0]):
             x[i] = torch.cat((ccl_tensor[i], dd_tensor[i]))
-        if domain == 1:
-            y = torch.ones((x.shape[0], 1))
-        else:
-            y = torch.zeros((x.shape[0], 1))
+        y = torch.zeros((x.shape[0], 2))
+        y[:, domain] = 1
         return cls(x, y)
 
     def __len__(self):
