@@ -59,3 +59,51 @@ python parse_to_data_tensors.py -o exclude -n all
 ```
 
 This process will take some time to complete.
+
+## 2. Experiments
+
+### 2.1 Run pipeline
+
+The main.py file includes implicit configuration for training and testing.
+
+```
+python main.py
+```
+
+### 2.2 Access results
+
+If you did not configure your own W&B visualization before running main.py, you can find results and metrics inside the below folder.
+
+```
+$yourworkspace$/DANN/results/plots/
+```
+
+The embedded visual logger is implemented in logger.py, a typical usage is shown below.
+
+```
+from logger import Logger
+
+# An instance of Logger class which requires a list of names
+my_logger = Logger(['epoch', 'metric1', 'metric2'])
+
+# Inside the training loop, record the current results
+for epoch in range(1, epochs + 1):
+
+    # Do some training
+    y_hat = model(x)
+    
+    # Compute metrics
+    m1 = loss_func1(y_hat, y)
+    m2 = loss_func2(y_hat, y)
+    
+    # Call log() to record data or metrics
+    # It requires all fields in names be filled in.
+    my_logger.log({'epoch': epoch, 
+                   'metric1': m1, 
+                   'metric2': m2})
+
+# Outside the loop, call save_plot() to save the trend plot
+# The x-axis refers to values under the first name, here it is epoch
+PATH = './result_plot.jpg'
+my_logger.save_plot(PATH)
+```
