@@ -1,26 +1,12 @@
 import torch
+from logger import Logger
 
-t = torch.rand((4, 2))
-t = t * 100
-print(t)
-t_min, t_max = t.min(), t.max()
-new_min, new_max = 0, 1
-t = (t - t_min)/(t_max - t_min)*(new_max - new_min) + new_min
-print(t)
-
-m = torch.nn.LogSoftmax(dim=1)
-output = m(t)
-loss_domain = torch.nn.NLLLoss()
-loss = loss_domain(output[:, 1], torch.tensor([0, 0, 0, 0]))
-print(loss)
-
-a = (1, 2)
-print(a[0])
-
-
-nan = torch.tensor(float('nan'))
-if torch.isnan(nan):
-    print(nan)
-
+train_logger = Logger(['epoch', 'train_accuracy', 'train_loss'])
+train_logger.log({'epoch': 1, 'train_accuracy': 42, 'train_loss': torch.rand(1)})
+train_logger.log({'epoch': 2, 'train_accuracy': torch.rand(1), 'train_loss': torch.rand(1)})
+train_logger.log({'epoch': 3, 'train_accuracy': torch.rand(1), 'train_loss': torch.rand(1)})
+train_logger.log({'epoch': 4, 'train_accuracy': torch.rand(1), 'train_loss': torch.rand(1)})
+print(train_logger.df)
+train_logger.save_plot('plot.jpg')
 
 exit()

@@ -53,11 +53,6 @@ class KFold:
 
 
 class MyDataset(Dataset):
-    # def __init__(self, ccl_tensor, dd_tensor, ic50_tensor):
-    #     self.x = torch.zeros((ic50_tensor.shape[0], ccl_tensor.shape[1] + dd_tensor.shape[1]), dtype=torch.float32)
-    #     for i in range(self.x.shape[0]):
-    #         self.x[i] = torch.cat((ccl_tensor[i], dd_tensor[i]))
-    #     self.y = torch.Tensor(ic50_tensor)
 
     def __init__(self, x, y):
         self.x = x
@@ -100,3 +95,13 @@ class MyDataset(Dataset):
 
     def get_n_feature(self):
         return self.x.shape[1]
+
+    def normalize(self, new_min, new_max, normalize_x=True, normalize_y=True):
+        if normalize_x:
+            x_min = self.x.min()
+            x_max = self.x.max()
+            self.x = (self.x - x_min) / (x_max - x_min) * (new_max - new_min) + new_min
+        if normalize_y:
+            y_min = self.y.min()
+            y_max = self.y.max()
+            self.y = (self.y - y_min) / (y_max - y_min) * (new_max - new_min) + new_min
