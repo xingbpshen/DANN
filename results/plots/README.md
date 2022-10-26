@@ -1,1 +1,0 @@
-This directory contains plots and figures.

@@ -32,3 +32,7 @@ class Logger:
             plot = tmp_df.plot()
             fig = plot.get_figure()
             fig.savefig(path)
+
+    def save_csv(self, path, option='all'):
+        if option == 'all':
+            self.df.to_csv(path)

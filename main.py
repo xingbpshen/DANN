@@ -6,12 +6,14 @@ from customized_dataset import MyDataset, KFold
 from logger import Logger
 from models.dann import DANN
 from tqdm.auto import tqdm
+from datetime import date
+import os
 import wandb
 
 GDSC_TENSOR_PATH = './data/tensors/gdsc/'
 CCLE_TENSOR_PATH = './data/tensors/ccle/'
 WEIGHTS_PATH = './data/weights/'
-LOGGER_PATH = './results/plots/'
+LOGGER_PATH = './results/'
 
 loss_regression = torch.nn.MSELoss()
 loss_domain = torch.nn.NLLLoss()
@@ -39,17 +41,19 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
             xs, ys, dys, xt, dyt = xs.cuda(), ys.cuda(), dys.cuda(), xt.cuda(), dyt.cuda()
         optimizer.zero_grad()
 
-        # xs = (xs - s_x_mm_tuple[0]) / (s_x_mm_tuple[1] - s_x_mm_tuple[0]) * (1 - 0) + 0
-        xs = xs - xs.min()
-        xs = xs / xs.max()
-        ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
+        # non use xs = (xs - s_x_mm_tuple[0]) / (s_x_mm_tuple[1] - s_x_mm_tuple[0]) * (1 - 0) + 0
+
+        # xs = xs - xs.min()
+        # xs = xs / xs.max()
+        # ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
         regression_pred, domain_pred = model(xs, alpha)
         loss_s_label = loss_regression(regression_pred, ys.view(-1, 1))
         loss_s_domain = loss_domain(domain_pred, dys[:, 1])
 
-        # xt = (xt - t_x_mm_tuple[0]) / (t_x_mm_tuple[1] - t_x_mm_tuple[0]) * (1 - 0) + 0
-        xt = xt - xt.min()
-        xt = xt / xt.max()
+        # non use xt = (xt - t_x_mm_tuple[0]) / (t_x_mm_tuple[1] - t_x_mm_tuple[0]) * (1 - 0) + 0
+
+        # xt = xt - xt.min()
+        # xt = xt / xt.max()
         _, domain_pred = model(xt, alpha)
         loss_t_domain = loss_domain(domain_pred, dyt[:, 1])
 
@@ -68,8 +72,7 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
     print('EPOCH {} TRAINING SET RESULTS: Average total loss: {:.4f} Average target domain loss: {:.4f}  '
           'Average source mse: {:.4f}'.format(epoch, loss_total_fin, loss_t_domain_fin, mse_fin))
 
-    # do not log the first epoch due to plotting appearance
-    if use_local_logger and epoch != 1 and logger is not None:
+    if use_local_logger and logger is not None:
         logger.log({'epoch': epoch,
                     'train_total_loss': loss_total_fin,
                     'train_source_mse': mse_fin,
@@ -98,13 +101,13 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_y_mm_tuple, t_y_m
         if torch.cuda.is_available():
             xs, ys, xt, yt = xs.cuda(), ys.cuda(), xt.cuda(), yt.cuda()
 
-        xs = xs - xs.min()
-        xs = xs / xs.max()
-        ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
+        # xs = xs - xs.min()
+        # xs = xs / xs.max()
+        # ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
 
-        xt = xt - xt.min()
-        xt = xt / xt.max()
-        yt = (yt - t_y_mm_tuple[0]) / (t_y_mm_tuple[1] - t_y_mm_tuple[0]) * (1 - 0) + 0
+        # xt = xt - xt.min()
+        # xt = xt / xt.max()
+        # yt = (yt - t_y_mm_tuple[0]) / (t_y_mm_tuple[1] - t_y_mm_tuple[0]) * (1 - 0) + 0
 
         regression_pred, _ = model(xs, alpha)
         mse_s = loss_regression(regression_pred, ys.view(-1, 1))
@@ -135,6 +138,12 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_y_mm_tuple, t_y_m
 
 
 def main(argv):
+    info = 'WithOutNorm'
+    k_fold = 5
+    batch_size = 20
+    lr = 1e-3
+    epochs = 8
+
     gdsc_ic50_dataset = \
         MyDataset.from_ccl_dd_ic50(torch.load(GDSC_TENSOR_PATH + 'CCL.pt'),
                                    torch.load(GDSC_TENSOR_PATH + 'DD.pt'),
@@ -147,11 +156,6 @@ def main(argv):
         MyDataset.from_ccl_dd_ic50(torch.load(CCLE_TENSOR_PATH + 'CCL_COMMON.pt'),
                                    torch.load(CCLE_TENSOR_PATH + 'DD_COMMON.pt'),
                                    torch.load(CCLE_TENSOR_PATH + 'IC50_COMMON.pt'))
-
-    k_fold = 5
-    batch_size = 20
-    lr = 1e-3
-    epochs = 10
 
     gdsc_ic50_fold = KFold(gdsc_ic50_dataset, k_fold, 1)
     ccle_domain_fold = KFold(ccle_domain_dataset, k_fold, 1)
@@ -208,8 +212,25 @@ def main(argv):
             test(gdsc_v_loader, ccle_ic50_test_loader, model, epoch, epochs, v_s_y_mm_tuple, te_t_y_mm_tuple,
                  test_logger)
 
-        train_logger.save_plot(LOGGER_PATH + 'PLOT_TRAIN_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
-        test_logger.save_plot(LOGGER_PATH + 'PLOT_TEST_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
+        if use_local_logger:
+            run_curr = 1
+            for path in os.listdir(LOGGER_PATH):
+                # If current path is a file
+                if os.path.isfile(os.path.join(LOGGER_PATH, path)):
+                    run_curr += 1
+
+            dir_plots = '{}RUN{}_{}_{}/plots/'.format(LOGGER_PATH, run_curr, date.today(), info)
+            if not os.path.exists(dir_plots):
+                os.makedirs(dir_plots)
+
+            dir_values = '{}RUN{}_{}_{}/values/'.format(LOGGER_PATH, run_curr, date.today(), info)
+            if not os.path.exists(dir_values):
+                os.makedirs(dir_values)
+
+            train_logger.save_csv(dir_values + 'PLOT_TRAIN_FD{}_BS{}_LR{}_EP{}.csv'.format(k + 1, batch_size, lr, epochs))
+            train_logger.save_plot(dir_plots + 'PLOT_TRAIN_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
+            test_logger.save_csv(dir_values + 'PLOT_TRAIN_FD{}_BS{}_LR{}_EP{}.csv'.format(k + 1, batch_size, lr, epochs))
+            test_logger.save_plot(dir_plots + 'PLOT_TEST_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
 
 
 if __name__ == "__main__":
