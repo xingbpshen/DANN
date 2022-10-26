@@ -43,17 +43,17 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
 
         # non use xs = (xs - s_x_mm_tuple[0]) / (s_x_mm_tuple[1] - s_x_mm_tuple[0]) * (1 - 0) + 0
 
-        # xs = xs - xs.min()
-        # xs = xs / xs.max()
-        # ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
+        xs = xs - xs.min()
+        xs = xs / xs.max()
+        ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
         regression_pred, domain_pred = model(xs, alpha)
         loss_s_label = loss_regression(regression_pred, ys.view(-1, 1))
         loss_s_domain = loss_domain(domain_pred, dys[:, 1])
 
         # non use xt = (xt - t_x_mm_tuple[0]) / (t_x_mm_tuple[1] - t_x_mm_tuple[0]) * (1 - 0) + 0
 
-        # xt = xt - xt.min()
-        # xt = xt / xt.max()
+        xt = xt - xt.min()
+        xt = xt / xt.max()
         _, domain_pred = model(xt, alpha)
         loss_t_domain = loss_domain(domain_pred, dyt[:, 1])
 
@@ -101,13 +101,13 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_y_mm_tuple, t_y_m
         if torch.cuda.is_available():
             xs, ys, xt, yt = xs.cuda(), ys.cuda(), xt.cuda(), yt.cuda()
 
-        # xs = xs - xs.min()
-        # xs = xs / xs.max()
-        # ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
+        xs = xs - xs.min()
+        xs = xs / xs.max()
+        ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
 
-        # xt = xt - xt.min()
-        # xt = xt / xt.max()
-        # yt = (yt - t_y_mm_tuple[0]) / (t_y_mm_tuple[1] - t_y_mm_tuple[0]) * (1 - 0) + 0
+        xt = xt - xt.min()
+        xt = xt / xt.max()
+        yt = (yt - t_y_mm_tuple[0]) / (t_y_mm_tuple[1] - t_y_mm_tuple[0]) * (1 - 0) + 0
 
         regression_pred, _ = model(xs, alpha)
         mse_s = loss_regression(regression_pred, ys.view(-1, 1))
@@ -138,7 +138,7 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_y_mm_tuple, t_y_m
 
 
 def main(argv):
-    info = 'WithOutNorm'
+    info = 'XNormPerBatchYNormAcrossSet'
     k_fold = 5
     batch_size = 20
     lr = 1e-3
