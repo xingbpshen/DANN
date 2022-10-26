@@ -227,10 +227,10 @@ def main(argv):
             if not os.path.exists(dir_values):
                 os.makedirs(dir_values)
 
-            train_logger.save_csv(dir_values + 'PLOT_TRAIN_FD{}_BS{}_LR{}_EP{}.csv'.format(k + 1, batch_size, lr, epochs))
-            train_logger.save_plot(dir_plots + 'PLOT_TRAIN_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
-            test_logger.save_csv(dir_values + 'PLOT_TRAIN_FD{}_BS{}_LR{}_EP{}.csv'.format(k + 1, batch_size, lr, epochs))
-            test_logger.save_plot(dir_plots + 'PLOT_TEST_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
+            train_logger.save_csv(dir_values + 'TRAIN_METRICS_FD{}_BS{}_LR{}_EP{}.csv'.format(k + 1, batch_size, lr, epochs))
+            train_logger.save_plot(dir_plots + 'TRAIN_PLOT_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
+            test_logger.save_csv(dir_values + 'TEST_METRICS_FD{}_BS{}_LR{}_EP{}.csv'.format(k + 1, batch_size, lr, epochs))
+            test_logger.save_plot(dir_plots + 'TEST_PLOT_FD{}_BS{}_LR{}_EP{}.jpg'.format(k + 1, batch_size, lr, epochs))
 
 
 if __name__ == "__main__":
