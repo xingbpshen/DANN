@@ -2,9 +2,10 @@ import sys
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
-from customized_dataset import MyDataset, KFold
+from customized_dataset import MyDatasetSep as MyDataset
+from customized_dataset import KFoldSep as KFold
 from logger import Logger
-from models.dann import DANN, DANNConv2d
+from models.dann import DANNConv2d as DANN
 from tqdm.auto import tqdm
 from datetime import date
 import os
@@ -23,26 +24,31 @@ use_local_logger = True
 
 
 def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, epochs,
-          s_x_mm_tuple, t_x_mm_tuple, s_y_mm_tuple, logger, is_parallel):
+          s_x_mm_tuple, t_x_mm_tuple, logger, is_parallel):
     s_t_loader = tqdm(enumerate(s_train_loader), total=len(s_train_loader))
     t_t_loader = tqdm(enumerate(t_train_loader), total=len(t_train_loader))
     len_dataloader = min(len(s_t_loader), len(t_t_loader))
     loss_total_fin, loss_t_domain_fin, mse_fin = 0, 0, 0
 
-    for (i, (xs, ys)), (_, (xt, dyt)) in zip(s_t_loader, t_t_loader):
-        s_len = xs.shape[0]
+    for (i, (x1s, x2s, ys)), (_, (x1t, x2t, dyt)) in zip(s_t_loader, t_t_loader):
+        s_len = x1s.shape[0]
         p = float(i + epoch * len_dataloader) / epochs / len_dataloader
         alpha = 2. / (1. + np.exp(-10 * p)) - 1
+
         # TODO
         dys = torch.zeros((s_len, 2))
         dys[:, 0] = 1
+        xs, xt = torch.zeros((s_len, x2s.shape[1], x1s.shape[1])), torch.zeros((s_len, x2s.shape[1], x1s.shape[1]))
+        for j in range(s_len):
+            xs[j] = torch.matmul(x2s[j].view(-1, 1), x1s[j].view(1, -1))
+            xt[j] = torch.matmul(x2t[j].view(-1, 1), x1t[j].view(1, -1))
+
         if torch.cuda.is_available():
             dys, dyt = dys.to(torch.int64), dyt.to(torch.int64)
             xs, ys, dys, xt, dyt = xs.to(0), ys.to(0), dys.to(0), xt.to(0), dyt.to(0)
         model.zero_grad()
 
         xs = (xs - s_x_mm_tuple[0]) / (s_x_mm_tuple[1] - s_x_mm_tuple[0]) * (1 - 0) + 0
-        # ys = (ys - s_y_mm_tuple[0]) / (s_y_mm_tuple[1] - s_y_mm_tuple[0]) * (1 - 0) + 0
         xt = (xt - t_x_mm_tuple[0]) / (t_x_mm_tuple[1] - t_x_mm_tuple[0]) * (1 - 0) + 0
 
         regression_pred, domain_pred = model(xs, alpha)
@@ -89,7 +95,7 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
 
 
 @torch.no_grad()
-def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_mm_tuple, y_mm_tuple_tr, logger, is_parallel):
+def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_mm_tuple, logger, is_parallel):
     s_loader = tqdm(enumerate(s_test_loader), total=len(s_test_loader))
     t_loader = tqdm(enumerate(t_test_loader), total=len(t_test_loader))
     len_dataloader = min(len(s_loader), len(t_loader))
@@ -142,9 +148,9 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_m
 
 
 def main(argv):
-    info = 'XNormAcrossSetSepYNoNorm'
+    info = 'ConvXNormAcrossSetSepYNoNorm'
     k_fold = 5
-    batch_size = 1000
+    batch_size = 10
     lr = 1e-3
     epochs = 20
     is_parallel = 0
@@ -177,6 +183,9 @@ def main(argv):
                                    torch.load(CCLE_TENSOR_PATH + 'DD_COMMON.pt'),
                                    torch.load(CCLE_TENSOR_PATH + 'IC50_COMMON.pt'), frac=0.2)
 
+    tr_s_x_mm_tuple = (gdsc_ic50_dataset.get_min1tmin2_max1tmax2())
+    tr_t_x_mm_tuple = (ccle_domain_dataset.get_min1tmin2_max1tmax2())
+
     gdsc_ic50_fold = KFold(gdsc_ic50_dataset, k_fold, 1)
     ccle_domain_fold = KFold(ccle_domain_dataset, k_fold, 1)
 
@@ -203,23 +212,16 @@ def main(argv):
             }
 
         tmp0, tmp1 = gdsc_ic50_fold.get_next_train_validation()
-        tr_s_x_mm_tuple = (tmp0.x.min(), tmp0.x.max())
-        tr_s_y_mm_tuple = (tmp0.y.min(), tmp0.y.max())
-        # v_s_x_mm_tuple = (tmp1.x.min(), tmp1.x.max())
-        # v_s_y_mm_tuple = (tmp1.y.min(), tmp1.y.max())
         gdsc_tr_loader, gdsc_v_loader = \
             DataLoader(tmp0, batch_size=batch_size, shuffle=False), \
             DataLoader(tmp1, batch_size=1, shuffle=False)
 
         tmp0, tmp1 = ccle_domain_fold.get_next_train_validation()
-        tr_t_x_mm_tuple = (tmp0.x.min(), tmp0.x.max())
         ccle_tr_loader, ccle_v_loader = \
             DataLoader(tmp0, batch_size=batch_size, shuffle=False), \
             DataLoader(tmp1, batch_size=1, shuffle=False)
 
         ccle_ic50_test_loader = DataLoader(ccle_ic50_dataset_test, batch_size=1, shuffle=False)
-        # te_t_x_mm_tuple = (ccle_ic50_dataset_test.x.min(), ccle_ic50_dataset_test.x.max())
-        # te_t_y_mm_tuple = (ccle_ic50_dataset_test.y.min(), ccle_ic50_dataset_test.y.max())
 
         model = DANN(gdsc_ic50_dataset.get_n_feature(), 0.5, 1)
         use_model = model
@@ -232,7 +234,7 @@ def main(argv):
 
         for epoch in range(1, epochs + 1):
             train(gdsc_tr_loader, ccle_tr_loader, use_model, optimizer, batch_size, epoch, epochs,
-                  tr_s_x_mm_tuple, tr_t_x_mm_tuple, tr_s_y_mm_tuple, train_logger, is_parallel)
+                  tr_s_x_mm_tuple, tr_t_x_mm_tuple, train_logger, is_parallel)
 
             if not os.path.exists(dir_weights):
                 os.makedirs(dir_weights)
@@ -245,14 +247,9 @@ def main(argv):
 
             # Use the scalar in training to do normalization
             test(gdsc_v_loader, ccle_ic50_test_loader, use_model, epoch, epochs, tr_s_x_mm_tuple, tr_t_x_mm_tuple,
-                 tr_s_y_mm_tuple, test_logger, is_parallel)
+                 test_logger, is_parallel)
 
         if use_local_logger:
-            # run_curr = 1
-            # for path in os.listdir(LOGGER_PATH):
-            #     # If current path is a dir
-            #     if os.path.isdir(os.path.join(LOGGER_PATH, path)):
-            #         run_curr += 1
 
             if not os.path.exists(dir_plots):
                 os.makedirs(dir_plots)

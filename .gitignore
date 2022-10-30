@@ -1,5 +1,7 @@
 #Others
+results/*
 gpu-request1.sh
+gpu-request_4h.sh
 data/tensors_uncleaned/
 .idea/*
 .DS_Store
