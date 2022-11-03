@@ -213,7 +213,7 @@ class MyDatasetSep(Dataset):
     def from_ccl_dd_domain(cls, ccl_tensor, dd_tensor, domain, frac=1):
         use_n = int(ccl_tensor.shape[0] * frac)
         x1 = torch.zeros((use_n, ccl_tensor.shape[1]), dtype=torch.float32)
-        x2 = torch.zeros((use_n, ccl_tensor.shape[1]), dtype=torch.float32)
+        x2 = torch.zeros((use_n, dd_tensor.shape[1]), dtype=torch.float32)
         for i in range(use_n):
             x1[i] = ccl_tensor[i]
             x2[i] = dd_tensor[i]
@@ -238,10 +238,22 @@ class MyDatasetSep(Dataset):
         return self.x1, self.x2
 
     def get_n_feature(self):
-        return self.x1.shape[1], self.x2.shape[1]
+        return self.x1.shape[1] + self.x2.shape[1]
 
     def get_min_max_tuples(self):
         return (self.x1.min(), self.x1.max()), (self.x2.min(), self.x2.max()), (self.y.min(), self.y.max())
+
+    def get_x1_min_max(self):
+        return self.x1.min(), self.x1.max()
+
+    def get_x2_min_max(self):
+        return self.x2.min(), self.x2.max()
+
+    def get_x1_mean_std(self):
+        return torch.mean(self.x1), torch.std(self.x1)
+
+    def get_x2_mean_std(self):
+        return torch.mean(self.x2), torch.std(self.x2)
 
     def get_min1tmin2_max1tmax2(self):
         return self.x1.min() * self.x2.min(), self.x1.max() * self.x2.max()

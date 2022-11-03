@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from customized_dataset import MyDatasetSep as MyDataset
 from customized_dataset import KFoldSep as KFold
 from logger import Logger
-from models.dann import DANNConv2d as DANN
+from models.dann import DANN
 from tqdm.auto import tqdm
 from datetime import date
 import os
@@ -27,17 +27,27 @@ use_local_logger = True
 def compute_batch_xs_xt(x1s, x2s, x1t, x2t):
     s_len = x1s.shape[0]
     t_len = x1t.shape[0]
-    xs, xt = torch.zeros((s_len, 1, x2s.shape[1], x1s.shape[1])), torch.zeros((t_len, 1, x2s.shape[1], x1s.shape[1]))
+    xs, xt = torch.zeros((s_len, x1s.shape[1] + x2s.shape[1])), torch.zeros((t_len, x1s.shape[1] + x2s.shape[1]))
     for j in range(s_len):
-        xs[j][0] = torch.matmul(x2s[j].view(-1, 1), x1s[j].view(1, -1))
+        xs[j] = torch.cat((x1s[j], x2s[j]))
     for j in range(t_len):
-        xt[j][0] = torch.matmul(x2t[j].view(-1, 1), x1t[j].view(1, -1))
+        xt[j] = torch.cat((x1t[j], x2t[j]))
 
     return xs, xt
 
 
+@torch.no_grad()
+def normalization(t, prev_min, prev_max, new_min=0, new_max=1):
+    return (t - prev_min) / (prev_max - prev_min) * (new_max - new_min) + new_min
+
+
+@torch.no_grad()
+def standardization(t, mean, std):
+    return (t - mean) / std
+
+
 def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, epochs,
-          s_x_mm_tuple, t_x_mm_tuple, logger, is_parallel):
+          tr_s_x1_mm_tuple, tr_s_x2_mm_tuple, tr_t_x1_mm_tuple, tr_t_x2_mm_tuple, logger, is_parallel):
     s_t_loader = tqdm(enumerate(s_train_loader), total=len(s_train_loader))
     t_t_loader = tqdm(enumerate(t_train_loader), total=len(t_train_loader))
     len_dataloader = min(len(s_t_loader), len(t_t_loader))
@@ -51,74 +61,77 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
         # TODO
         dys = torch.zeros((s_len, 2))
         dys[:, 0] = 1
-        xs, xt = compute_batch_xs_xt(x1s, x2s, x1t, x2t)
+        # xs, xt = compute_batch_xs_xt(normalization(x1s, tr_s_x1_mm_tuple[0], tr_s_x1_mm_tuple[1]),
+        #                              normalization(x2s, tr_s_x2_mm_tuple[0], tr_s_x2_mm_tuple[1]),
+        #                              normalization(x1t, tr_t_x1_mm_tuple[0], tr_t_x1_mm_tuple[1]),
+        #                              normalization(x2t, tr_t_x2_mm_tuple[0], tr_t_x2_mm_tuple[1]))
+        xs, xt = compute_batch_xs_xt(standardization(x1s, tr_s_x1_mm_tuple[0], tr_s_x1_mm_tuple[1]),
+                                     normalization(x2s, tr_s_x2_mm_tuple[0], tr_s_x2_mm_tuple[1]),
+                                     standardization(x1t, tr_t_x1_mm_tuple[0], tr_t_x1_mm_tuple[1]),
+                                     normalization(x2t, tr_t_x2_mm_tuple[0], tr_t_x2_mm_tuple[1]))
 
         dys, dyt = dys.to(torch.int64), dyt.to(torch.int64)
 
-        # if torch.cuda.is_available():
-        #     dys, dyt = dys.to(torch.int64), dyt.to(torch.int64)
-        #     xs, ys, dys, xt, dyt = xs.to(0), ys.to(0), dys.to(0), xt.to(0), dyt.to(0)
+        if torch.cuda.is_available():
+            dys, dyt = dys.to(torch.int64), dyt.to(torch.int64)
+            xs, ys, dys, xt, dyt = xs.to(0), ys.to(0), dys.to(0), xt.to(0), dyt.to(0)
 
         model.zero_grad()
-
-        # Normalization
-        xs = (xs - s_x_mm_tuple[0]) / (s_x_mm_tuple[1] - s_x_mm_tuple[0]) * (1 - 0) + 0
-        xt = (xt - t_x_mm_tuple[0]) / (t_x_mm_tuple[1] - t_x_mm_tuple[0]) * (1 - 0) + 0
 
         # print('xs', xs.shape)
         # print('xt', xt.shape)
 
-        print('CUDA MEM ALLOCATED CKPT 1: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 1: ', torch.cuda.memory_reserved())
-        if torch.cuda.is_available():
-            xs = xs.to(0)
-        print('CUDA MEM ALLOCATED CKPT 2: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 2: ', torch.cuda.memory_reserved())
+        # print('CUDA MEM ALLOCATED CKPT 1: ', torch.cuda.memory_allocated())
+        # print('CUDA MEM RESERVED CKPT 1: ', torch.cuda.memory_reserved())
+        # if torch.cuda.is_available():
+        #     xs = xs.to(0)
+        # print('CUDA MEM ALLOCATED CKPT 2: ', torch.cuda.memory_allocated())
+        # print('CUDA MEM RESERVED CKPT 2: ', torch.cuda.memory_reserved())
         regression_pred, domain_pred = model(xs, alpha)
-        print('CUDA MEM ALLOCATED CKPT 3: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 3: ', torch.cuda.memory_reserved())
-        if torch.cuda.is_available():
-            del xs
-            torch.cuda.empty_cache()
-        print('CUDA MEM ALLOCATED CKPT 4: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 4: ', torch.cuda.memory_reserved())
+        # print('CUDA MEM ALLOCATED CKPT 3: ', torch.cuda.memory_allocated())
+        # print('CUDA MEM RESERVED CKPT 3: ', torch.cuda.memory_reserved())
+        # if torch.cuda.is_available():
+        #     del xs
+        #     torch.cuda.empty_cache()
+        # print('CUDA MEM ALLOCATED CKPT 4: ', torch.cuda.memory_allocated())
+        # print('CUDA MEM RESERVED CKPT 4: ', torch.cuda.memory_reserved())
 
         # print('rp', regression_pred.shape)
         # print('dp', domain_pred.shape)
         # print('ys', ys.view(-1, 1).shape)
-        if torch.cuda.is_available():
-            ys = ys.to(0)
+        # if torch.cuda.is_available():
+        #     ys = ys.to(0)
         loss_s_label = loss_regression(regression_pred, ys.view(-1, 1))
-        if torch.cuda.is_available():
-            del regression_pred
-            del ys
-            torch.cuda.empty_cache()
+        # if torch.cuda.is_available():
+        #     del regression_pred
+        #     del ys
+        #     torch.cuda.empty_cache()
 
-        if torch.cuda.is_available():
-            dys = dys.to(0)
+        # if torch.cuda.is_available():
+        #     dys = dys.to(0)
         loss_s_domain = loss_domain(domain_pred, dys[:, 1])
-        if torch.cuda.is_available():
-            del domain_pred
-            del dys
-            torch.cuda.empty_cache()
+        # if torch.cuda.is_available():
+        #     del domain_pred
+        #     del dys
+        #     torch.cuda.empty_cache()
+        #
+        # print('CUDA MEM ALLOCATED CKPT 3: ', torch.cuda.memory_allocated())
+        # print('CUDA MEM RESERVED CKPT 3: ', torch.cuda.memory_reserved())
 
-        print('CUDA MEM ALLOCATED CKPT 3: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 3: ', torch.cuda.memory_reserved())
-
-        if torch.cuda.is_available():
-            xt = xt.to(0)
+        # if torch.cuda.is_available():
+        #     xt = xt.to(0)
         _, domain_pred = model(xt, alpha)
-        if torch.cuda.is_available():
-            del xt
-            torch.cuda.empty_cache()
-
-        if torch.cuda.is_available():
-            dyt = dyt.to(0)
+        # if torch.cuda.is_available():
+        #     del xt
+        #     torch.cuda.empty_cache()
+        #
+        # if torch.cuda.is_available():
+        #     dyt = dyt.to(0)
         loss_t_domain = loss_domain(domain_pred, dyt[:, 1])
-        if torch.cuda.is_available():
-            del domain_pred
-            del dyt
-            torch.cuda.empty_cache()
+        # if torch.cuda.is_available():
+        #     del domain_pred
+        #     del dyt
+        #     torch.cuda.empty_cache()
 
         loss = loss_s_label + loss_s_domain + loss_t_domain
 
@@ -157,7 +170,8 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
 
 
 @torch.no_grad()
-def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_mm_tuple, logger, is_parallel):
+def test(s_test_loader, t_test_loader, model, epoch, epochs, tr_s_x1_mm_tuple, tr_s_x2_mm_tuple,
+         tr_t_x1_mm_tuple, tr_t_x2_mm_tuple, logger, is_parallel):
     s_loader = tqdm(enumerate(s_test_loader), total=len(s_test_loader))
     t_loader = tqdm(enumerate(t_test_loader), total=len(t_test_loader))
     len_dataloader = min(len(s_loader), len(t_loader))
@@ -167,35 +181,39 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_m
         p = float(i + epoch * len_dataloader) / epochs / len_dataloader
         alpha = 2. / (1. + np.exp(-10 * p)) - 1
 
-        xs, xt = compute_batch_xs_xt(x1s, x2s, x1t, x2t)
+        # xs, xt = compute_batch_xs_xt(normalization(x1s, tr_s_x1_mm_tuple[0], tr_s_x1_mm_tuple[1]),
+        #                              normalization(x2s, tr_s_x2_mm_tuple[0], tr_s_x2_mm_tuple[1]),
+        #                              normalization(x1t, tr_t_x1_mm_tuple[0], tr_t_x1_mm_tuple[1]),
+        #                              normalization(x2t, tr_t_x2_mm_tuple[0], tr_t_x2_mm_tuple[1]))
+        xs, xt = compute_batch_xs_xt(standardization(x1s, tr_s_x1_mm_tuple[0], tr_s_x1_mm_tuple[1]),
+                                     normalization(x2s, tr_s_x2_mm_tuple[0], tr_s_x2_mm_tuple[1]),
+                                     standardization(x1t, tr_t_x1_mm_tuple[0], tr_t_x1_mm_tuple[1]),
+                                     normalization(x2t, tr_t_x2_mm_tuple[0], tr_t_x2_mm_tuple[1]))
 
         if torch.cuda.is_available():
             xs, ys, xt, yt = xs.to(0), ys.to(0), xt.to(0), yt.to(0)
 
-        xs = (xs - s_x_mm_tuple[0]) / (s_x_mm_tuple[1] - s_x_mm_tuple[0]) * (1 - 0) + 0
-        xt = (xt - t_x_mm_tuple[0]) / (t_x_mm_tuple[1] - t_x_mm_tuple[0]) * (1 - 0) + 0
-
         regression_pred, _ = model(xs, alpha)
-        if torch.cuda.is_available():
-            del xs
-            torch.cuda.empty_cache()
+        # if torch.cuda.is_available():
+        #     del xs
+        #     torch.cuda.empty_cache()
 
         mse_s = loss_regression(regression_pred, ys.view(-1, 1))
-        if torch.cuda.is_available():
-            del regression_pred
-            del ys
-            torch.cuda.empty_cache()
+        # if torch.cuda.is_available():
+        #     del regression_pred
+        #     del ys
+        #     torch.cuda.empty_cache()
 
         regression_pred2, _ = model(xt, alpha)
-        if torch.cuda.is_available():
-            del xt
-            torch.cuda.empty_cache()
+        # if torch.cuda.is_available():
+        #     del xt
+        #     torch.cuda.empty_cache()
 
         mse_t = loss_regression(regression_pred2, yt.view(-1, 1))
-        if torch.cuda.is_available():
-            del regression_pred2
-            del yt
-            torch.cuda.empty_cache()
+        # if torch.cuda.is_available():
+        #     del regression_pred2
+        #     del yt
+        #     torch.cuda.empty_cache()
 
         if is_parallel > 1:
             mse_s_fin += mse_s.mean()
@@ -224,11 +242,11 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_m
 
 
 def main(argv):
-    info = 'ConvXNormAcrossSetSepYNoNorm'
+    info = 'CclDdNormAcrossSetCatSepYNoNormMTanh'
     k_fold = 5
-    batch_size = 8
+    batch_size = 1000
     lr = 1e-3
-    epochs = 20
+    epochs = 100
     is_parallel = 0
     if torch.cuda.is_available():
         is_parallel = torch.cuda.device_count()
@@ -265,10 +283,21 @@ def main(argv):
 
     print('Dataset load complete.')
 
-    tr_s_x_mm_tuple = (gdsc_ic50_dataset.get_min1tmin2_max1tmax2())
-    tr_t_x_mm_tuple = (ccle_domain_dataset.get_min1tmin2_max1tmax2())
+    # tr_s_x1_mm_tuple = (gdsc_ic50_dataset.get_x1_min_max())
+    tr_s_x2_mm_tuple = (gdsc_ic50_dataset.get_x2_min_max())
+    # tr_t_x1_mm_tuple = (ccle_domain_dataset.get_x1_min_max())
+    tr_t_x2_mm_tuple = (ccle_domain_dataset.get_x2_min_max())
+    tr_s_x1_mm_tuple = (gdsc_ic50_dataset.get_x1_mean_std())
+    # tr_s_x2_mm_tuple = (gdsc_ic50_dataset.get_x2_mean_std())
+    tr_t_x1_mm_tuple = (ccle_domain_dataset.get_x1_mean_std())
+    # tr_t_x2_mm_tuple = (ccle_domain_dataset.get_x2_mean_std())
 
-    print('Minimum and maximum computed.')
+    print('tr_s_x1_mm_tuple', tr_s_x1_mm_tuple)
+    print('tr_s_x2_mm_tuple', tr_s_x2_mm_tuple)
+    print('tr_t_x1_mm_tuple', tr_t_x1_mm_tuple)
+    print('tr_t_x2_mm_tuple', tr_t_x2_mm_tuple)
+
+    print('Data distribution parameters computed.')
 
     gdsc_ic50_fold = KFold(gdsc_ic50_dataset, k_fold, 1)
     ccle_domain_fold = KFold(ccle_domain_dataset, k_fold, 1)
@@ -309,7 +338,7 @@ def main(argv):
 
         ccle_ic50_test_loader = DataLoader(ccle_ic50_dataset_test, batch_size=1, shuffle=False)
 
-        model = DANN(gdsc_ic50_dataset.get_n_feature(), 0.5, 1)
+        model = DANN(gdsc_ic50_dataset.get_n_feature(), 0.8, 1)
         use_model = model
         if is_parallel > 1:
             use_model = torch.nn.DataParallel(model, device_ids=[*range(is_parallel)])
@@ -326,20 +355,22 @@ def main(argv):
 
         for epoch in range(1, epochs + 1):
             train(gdsc_tr_loader, ccle_tr_loader, use_model, optimizer, batch_size, epoch, epochs,
-                  tr_s_x_mm_tuple, tr_t_x_mm_tuple, train_logger, is_parallel)
+                  tr_s_x1_mm_tuple, tr_s_x2_mm_tuple, tr_t_x1_mm_tuple, tr_t_x2_mm_tuple, train_logger, is_parallel)
 
             if not os.path.exists(dir_weights):
                 os.makedirs(dir_weights)
-            if is_parallel > 1:
-                torch.save(use_model.module.state_dict(),
-                           dir_weights + 'TRAIN_DANN_FD{}_BS{}_LR{}_EP{}_P.pt'.format(k + 1, batch_size, lr, epoch))
-            else:
-                torch.save(use_model.state_dict(),
-                           dir_weights + 'TRAIN_DANN_FD{}_BS{}_LR{}_EP{}.pt'.format(k + 1, batch_size, lr, epoch))
+
+            if epoch % 10 == 0:
+                if is_parallel > 1:
+                    torch.save(use_model.module.state_dict(),
+                               dir_weights + 'TRAIN_DANN_FD{}_BS{}_LR{}_EP{}_P.pt'.format(k + 1, batch_size, lr, epoch))
+                else:
+                    torch.save(use_model.state_dict(),
+                               dir_weights + 'TRAIN_DANN_FD{}_BS{}_LR{}_EP{}.pt'.format(k + 1, batch_size, lr, epoch))
 
             # Use the scalar in training to do normalization
-            test(gdsc_v_loader, ccle_ic50_test_loader, use_model, epoch, epochs, tr_s_x_mm_tuple, tr_t_x_mm_tuple,
-                 test_logger, is_parallel)
+            test(gdsc_v_loader, ccle_ic50_test_loader, use_model, epoch, epochs, tr_s_x1_mm_tuple, tr_s_x2_mm_tuple,
+                 tr_t_x1_mm_tuple, tr_t_x2_mm_tuple, test_logger, is_parallel)
 
         if use_local_logger:
 
