@@ -67,21 +67,13 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
 
         # print('xs', xs.shape)
         # print('xt', xt.shape)
-
-        print('CUDA MEM ALLOCATED CKPT 1: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 1: ', torch.cuda.memory_reserved())
         if torch.cuda.is_available():
             xs = xs.to(0)
-        print('CUDA MEM ALLOCATED CKPT 2: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 2: ', torch.cuda.memory_reserved())
+        print('xs shape is ', xs.shape)
         regression_pred, domain_pred = model(xs, alpha)
-        print('CUDA MEM ALLOCATED CKPT 3: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 3: ', torch.cuda.memory_reserved())
         if torch.cuda.is_available():
             del xs
             torch.cuda.empty_cache()
-        print('CUDA MEM ALLOCATED CKPT 4: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 4: ', torch.cuda.memory_reserved())
 
         # print('rp', regression_pred.shape)
         # print('dp', domain_pred.shape)
@@ -102,9 +94,6 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
             del dys
             torch.cuda.empty_cache()
 
-        print('CUDA MEM ALLOCATED CKPT 3: ', torch.cuda.memory_allocated())
-        print('CUDA MEM RESERVED CKPT 3: ', torch.cuda.memory_reserved())
-
         if torch.cuda.is_available():
             xt = xt.to(0)
         _, domain_pred = model(xt, alpha)
@@ -124,14 +113,14 @@ def train(s_train_loader, t_train_loader, model, optimizer, batch_size, epoch, e
 
         if is_parallel > 1:
             loss.mean().backward()
-            loss_total_fin += loss.mean()
-            loss_t_domain_fin += loss_t_domain.mean()
-            mse_fin += loss_s_label.mean()
+            loss_total_fin += loss.item().mean()
+            loss_t_domain_fin += loss_t_domain.item().mean()
+            mse_fin += loss_s_label.item().mean()
         else:
             loss.backward()
-            loss_total_fin += loss
-            loss_t_domain_fin += loss_t_domain
-            mse_fin += loss_s_label
+            loss_total_fin += loss.item()
+            loss_t_domain_fin += loss_t_domain.item()
+            mse_fin += loss_s_label.item()
 
         optimizer.step()
 
@@ -198,11 +187,11 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_m
             torch.cuda.empty_cache()
 
         if is_parallel > 1:
-            mse_s_fin += mse_s.mean()
-            mse_t_fin += mse_t.mean()
+            mse_s_fin += mse_s.item().mean()
+            mse_t_fin += mse_t.item().mean()
         else:
-            mse_s_fin += mse_s
-            mse_t_fin += mse_t
+            mse_s_fin += mse_s.item()
+            mse_t_fin += mse_t.item()
 
     mse_s_fin = mse_s_fin / len_dataloader
     mse_t_fin = mse_t_fin / len_dataloader
@@ -224,9 +213,9 @@ def test(s_test_loader, t_test_loader, model, epoch, epochs, s_x_mm_tuple, t_x_m
 
 
 def main(argv):
-    info = 'ConvXNormAcrossSetSepYNoNorm'
+    info = 'ConvXNormAcrossSetSepYNoNormConv'
     k_fold = 5
-    batch_size = 8
+    batch_size = 4
     lr = 1e-3
     epochs = 20
     is_parallel = 0

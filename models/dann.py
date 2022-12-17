@@ -22,41 +22,44 @@ class DANNConv2d(nn.Module):
     def __init__(self, m, r, n):
         super(DANNConv2d, self).__init__()
         self.Gf = nn.Sequential()
-        self.Gf.add_module('f_conv1', nn.Conv2d(1, 64, (5, 5)))
+        # (W-F+2P)/S+1
+        # 200, 12697
+        self.Gf.add_module('f_conv1', nn.Conv2d(1, 64, (5, 5)))  # 200-5+1=196， 12697-5+1=12693
         self.Gf.add_module('f_bn1', nn.BatchNorm2d(64))
-        self.Gf.add_module('f_pool1', nn.MaxPool2d(2))
+        self.Gf.add_module('f_pool1', nn.MaxPool2d(2, 2))   # (196-2)/2=97, (12697-2)/2=6347
         self.Gf.add_module('f_relu1', nn.ReLU(True))
-        self.Gf.add_module('f_conv2', nn.Conv2d(64, 50, (5, 5)))
+        self.Gf.add_module('f_conv2', nn.Conv2d(64, 50, (5, 5)))    # 97-5+1=93, 6347-5+1=6343
         self.Gf.add_module('f_bn2', nn.BatchNorm2d(50))
         self.Gf.add_module('f_drop1', nn.Dropout2d())
-        self.Gf.add_module('f_pool2', nn.MaxPool2d(2))
+        self.Gf.add_module('f_pool2', nn.MaxPool2d(2, 2))   # (93-2)/2=45, (6343-2)/2=3170
         self.Gf.add_module('f_relu2', nn.ReLU(True))
 
         self.Gy = nn.Sequential()
-        self.Gy.add_module('c_fc1', nn.Linear(50 * 47 * 3171, 100))
-        self.Gy.add_module('c_bn1', nn.BatchNorm1d(100))
+        self.Gy.add_module('c_fc1', nn.Linear(50 * 47 * 3171, 128))
+        # self.Gy.add_module('c_bn1', nn.BatchNorm1d(128))
         self.Gy.add_module('c_relu1', nn.ReLU(True))
         self.Gy.add_module('c_drop1', nn.Dropout2d())
-        self.Gy.add_module('c_fc2', nn.Linear(100, 100))
-        self.Gy.add_module('c_bn2', nn.BatchNorm1d(100))
+        self.Gy.add_module('c_fc2', nn.Linear(128, 64))
+        # self.Gy.add_module('c_bn2', nn.BatchNorm1d(64))
         self.Gy.add_module('c_relu2', nn.ReLU(True))
-        self.Gy.add_module('c_fc3', nn.Linear(100, 10))
+        self.Gy.add_module('c_fc3', nn.Linear(64, 32))
         self.Gy.add_module('c_relu3', nn.ReLU(True))
-        self.Gy.add_module('c_fc4', nn.Linear(10, 1))
+        self.Gy.add_module('c_fc4', nn.Linear(32, 1))
 
         self.Gd = nn.Sequential()
-        self.Gd.add_module('d_fc1', nn.Linear(50 * 47 * 3171, 100))
-        self.Gd.add_module('d_bn1', nn.BatchNorm1d(100))
+        self.Gd.add_module('d_fc1', nn.Linear(50 * 47 * 3171, 128))
+        # self.Gd.add_module('d_bn1', nn.BatchNorm1d(100))
         self.Gd.add_module('d_relu1', nn.ReLU(True))
-        self.Gd.add_module('d_fc2', nn.Linear(100, 2))
+        self.Gd.add_module('d_fc2', nn.Linear(128, 2))
         self.Gd.add_module('d_softmax', nn.LogSoftmax(dim=1))
 
     def forward(self, x, lamb):
         feature = self.Gf(x)
-        # print('feature', feature.shape)
         feature = feature.view(-1, 50 * 47 * 3171)
         reverse = GradientReverse.apply(feature, lamb)
+        print('ok1', feature)
         regression = self.Gy(feature)
+        print('ok2', regression.shape)
         domain_classification = self.Gd(reverse)
 
         return regression, domain_classification
