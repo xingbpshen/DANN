@@ -15,6 +15,7 @@ a = torch.Tensor([[1, 2, 3],
                 [2, 1, 3],
                 [3, 2, 1],
                 [1, 3, 2]])
-print((a - torch.mean(a)) / torch.std(a))
+
+
 
 exit()

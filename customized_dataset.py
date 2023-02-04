@@ -240,6 +240,12 @@ class MyDatasetSep(Dataset):
     def get_n_feature(self):
         return self.x1.shape[1] + self.x2.shape[1]
 
+    def get_n_x1_feature(self):
+        return self.x1.shape[1]
+
+    def get_n_x2_feature(self):
+        return self.x2.shape[1]
+
     def get_min_max_tuples(self):
         return (self.x1.min(), self.x1.max()), (self.x2.min(), self.x2.max()), (self.y.min(), self.y.max())
 

@@ -3,6 +3,7 @@ results/*
 gpu-request1.sh
 gpu-request_4h.sh
 data/tensors_uncleaned/
+data/DRP2022_preprocessed
 .idea/*
 .DS_Store
 *.csv
